@@ -6,8 +6,9 @@ import dash_daq as daq
 from flask import Flask
 from dash.exceptions import PreventUpdate
 
-server = Flask(__name__)
+# server = Flask(__name__)
 app = dash.Dash(__name__, server=server)
+server = app.server
 # Build App
 fig = go.Figure()
 
