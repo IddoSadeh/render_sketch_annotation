@@ -35,4 +35,4 @@ tenacity
 tifffile
 Werkzeug
 Pillow
-urllib
+
