@@ -4,11 +4,11 @@ import dash
 from dash import Dash, dcc, html, Input, Output, State, ctx
 import dash_daq as daq
 from flask import Flask
-from dash.exceptions import PreventUpdate
+from PIL import Image
+from urllib.request import urlopen
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server)
-# server = app.server
 # Build App
 fig = go.Figure()
 
@@ -106,8 +106,8 @@ app.layout = html.Div(
 )
 
 # img = "https://images.unsplash.com/photo-1453728013993-6d66e9c9123a?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxzZWFyY2h8Mnx8Zm9jdXN8ZW58MHx8MHx8&w=1000&q=80 "
-img = "https://visit.ubc.ca/wp-content/uploads/2019/04/plantrip_header-2800x1000_2x.jpg"
-# img ="https://raw.githubusercontent.com/michaelbabyn/plot_data/master/bridge.jpg"
+# img = "https://visit.ubc.ca/wp-content/uploads/2019/04/plantrip_header-2800x1000_2x.jpg"
+img = "https://raw.githubusercontent.com/michaelbabyn/plot_data/master/bridge.jpg"
 img_width = 1600
 img_height = 900
 scale_factor = 0.5
@@ -126,15 +126,11 @@ fig.add_trace(
 # Configure axes
 fig.update_xaxes(
     visible=False,
-    range=[0, img_width * scale_factor],
     fixedrange=True
 )
 
 fig.update_yaxes(
     visible=False,
-    range=[0, img_height * scale_factor],
-    # the scaleanchor attribute ensures that the aspect ratio stays constant
-    scaleanchor="x",
     # fixedrange dsiables zoom
     fixedrange=True
 )
@@ -148,23 +144,23 @@ fig.add_layout_image(
         sizey=img_height * scale_factor,
         xref="x",
         yref="y",
-        opacity=0.5,
+        opacity=1,
         layer="below",
         sizing="stretch",
-        source=img)
+        source=Image.open(urlopen(img)))
 )
 
-ogimg=dict(
-        x=0,
-        sizex=img_width * scale_factor,
-        y=img_height * scale_factor,
-        sizey=img_height * scale_factor,
-        xref="x",
-        yref="y",
-        opacity=0.5,
-        layer="below",
-        sizing="stretch",
-        source=img)
+ogimg = dict(
+    x=0,
+    sizex=img_width * scale_factor,
+    y=img_height * scale_factor,
+    sizey=img_height * scale_factor,
+    xref="x",
+    yref="y",
+    opacity=1,
+    layer="below",
+    sizing="stretch",
+    source=img)
 
 # Configure other layout
 fig.update_layout(
@@ -191,20 +187,21 @@ fig.update_layout(
     Input('shapes_data', 'data'),
     Input('text_data', 'data'),
     Input('image_data', 'data'),
+    Input('url-submit', 'n_clicks'),
     Input('url-input', 'value'),
-    Input('url-submit', 'n_clicks')
+
 )
 def save_data(relayout_data, inputText, submit_clicks, color_value, font_size, shapes_data, text_data, image_data,
-              url_input, url_clicks):
+              url_clicks,
+              url_input):
     # adding new text
-    print(relayout_data)
     fig.layout.annotations = text_data
     fig.layout.shapes = shapes_data
     if image_data:
         fig.layout.images = image_data
     else:
         fig.layout.images = fig.update_layout_images(
-            source=img
+            source=Image.open(urlopen(img))
         )["layout"]['images']
     if ctx.triggered_id == "shapes_data" or ctx.triggered_id == "text_data" or ctx.triggered_id == "image_data":
         return fig, fig.layout.shapes, fig.layout.annotations, fig.layout.images, 0, 0
@@ -213,17 +210,22 @@ def save_data(relayout_data, inputText, submit_clicks, color_value, font_size, s
         fig.layout.annotations = add_text(inputText, color_value, font_size)
         return fig, fig.layout.shapes, fig.layout.annotations, fig.layout.images, 0, 0
     if ctx.triggered_id == "url-submit":
-        fig.layout.images = fig.update_layout_images(
-            source=url_input
-        )["layout"]['images']
-        return fig, fig.layout.shapes, fig.layout.annotations, fig.layout.images, 0, 0
+        try:
+            fig.layout.images = fig.update_layout_images(
+                source=Image.open(urlopen(url_input))
+            )["layout"]['images']
+        except :
+            fig.layout.images = fig.update_layout_images(
+                source=url_input
+            )["layout"]['images']
+        finally:
+            return fig, fig.layout.shapes, fig.layout.annotations, fig.layout.images, 0, 0
     # this adds reactive color changes if the color picker was what triggered the callback
     # https://dash.plotly.com/determining-which-callback-input-changed
     if 'dragmode' in str(relayout_data) or "xaxis.range" in str(relayout_data):
         return dash.no_update
     if relayout_data:
         if ctx.triggered_id == "annotation-color-picker":
-            print(relayout_data)
             update_annotations(relayout_data, color_value)
         else:
             update_annotations(relayout_data, color_value, font_size)
@@ -306,21 +308,22 @@ def update_annotations(relayout_data, color_value='black', size=28):
 
         else:
             anno_num_index = re.search(r"\d", str(relayout_data))
-            i = int(str(relayout_data)[anno_num_index.start()])
+            if anno_num_index:
+                i = int(str(relayout_data)[anno_num_index.start()])
 
-            # if text content is changed "text" will be in relay data
-            if "text" in str(relayout_data):
-                fig.update_annotations(Annotation(fig.layout.annotations[i]['x'], fig.layout.annotations[i]['y'],
-                                                  relayout_data[f'annotations[{i}].text'], f'rgba({r},{g},{b},1)',
-                                                  size).__dict__,
-                                       i)
-            # for case where annotation was added but not changed (moved or editied)
+                # if text content is changed "text" will be in relay data
+                if "text" in str(relayout_data):
+                    fig.update_annotations(Annotation(fig.layout.annotations[i]['x'], fig.layout.annotations[i]['y'],
+                                                      relayout_data[f'annotations[{i}].text'], f'rgba({r},{g},{b},1)',
+                                                      size).__dict__,
+                                           i)
+                # for case where annotation was added but not changed (moved or editied)
 
-            # if text is just moved relay data wont have "text" in data
-            else:
-                fig.update_annotations(
-                    Annotation(relayout_data[f'annotations[{i}].x'], relayout_data[f'annotations[{i}].y'],
-                               fig.layout.annotations[i]['text'], f'rgba({r},{g},{b},1)', size).__dict__, i)
+                # if text is just moved relay data wont have "text" in data
+                else:
+                    fig.update_annotations(
+                        Annotation(relayout_data[f'annotations[{i}].x'], relayout_data[f'annotations[{i}].y'],
+                                   fig.layout.annotations[i]['text'], f'rgba({r},{g},{b},1)', size).__dict__, i)
 
 
 @app.callback(
