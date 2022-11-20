@@ -34,5 +34,5 @@ six
 tenacity
 tifffile
 Werkzeug
-PIL
+Pillow
 urllib.request
