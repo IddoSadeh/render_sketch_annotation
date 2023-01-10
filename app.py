@@ -47,8 +47,17 @@ config = {
     ],
 
 }
+
+instructions1 = open("instructions1.md", "r")
+instructions1_markdown = instructions1.read()
 app.layout = html.Div(
     [
+        html.Div([
+            # instructions for lab
+            dcc.Markdown(
+                children=instructions1_markdown,
+            ),
+        ]),
         # store not in use for now
         # for documentation
         # https://dash.plotly.com/dash-core-components/store
@@ -214,7 +223,7 @@ def save_data(relayout_data, inputText, submit_clicks, color_value, font_size, s
             fig.layout.images = fig.update_layout_images(
                 source=Image.open(urlopen(url_input))
             )["layout"]['images']
-        except :
+        except:
             fig.layout.images = fig.update_layout_images(
                 source=url_input
             )["layout"]['images']
