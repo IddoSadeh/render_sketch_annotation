@@ -9,6 +9,8 @@ from urllib.request import urlopen
 
 server = Flask(__name__)
 app = dash.Dash(__name__, server=server)
+
+app.title = 'Image Annoatation App'
 # Build App
 fig = go.Figure()
 
